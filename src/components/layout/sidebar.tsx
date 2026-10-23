@@ -16,6 +16,7 @@ import {
   Receipt,
   ShieldCheck,
   BarChart3,
+  Contact,
 } from "lucide-react";
 import { logoutAction } from "@/lib/auth/actions";
 
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
 ];
 
 const lendingItems: NavItem[] = [
+  { label: "Customers", href: "/customers", icon: <Contact size={18} /> },
   { label: "Leads", href: "/leads", icon: <UserPlus size={18} /> },
   { label: "Applications", href: "/loans/applications", icon: <FileText size={18} /> },
   { label: "Loan Accounts", href: "/loans", icon: <Landmark size={18} /> },
