@@ -452,3 +452,330 @@ model JournalEntryLine {
   @@index([journalEntryId])
   @@index([accountId])
 }
+
+// ============================================================
+// LEADS
+// ============================================================
+
+model Lead {
+  id              String    @id @default(cuid())
+  companyId       String
+  branchId        String?
+  source          String    // WALK_IN | PHONE | WEB | DSA | REFERRAL
+  dsaPartnerId    String?
+  referralCode    String?
+  customerName    String
+  phone           String
+  email           String?
+  loanProductId   String?
+  requestedAmount BigInt?   // paise
+  assignedTo      String?   // userId
+  status          String    @default("NEW") // NEW | CONTACTED | INTERESTED | CONVERTED | REJECTED | LOST
+  notes           String?
+  convertedToApplicationId String?
+  nextFollowUpAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  createdBy       String?
+
+  followUps       LeadFollowUp[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([createdAt])
+}
+
+model LeadFollowUp {
+  id        String   @id @default(cuid())
+  leadId    String
+  type      String   // CALL | VISIT | EMAIL | SMS | WHATSAPP
+  notes     String
+  outcome   String?  // INTERESTED | NOT_INTERESTED | CALLBACK | NO_ANSWER | CONVERTED
+  followedBy String?
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+// ============================================================
+// LOAN APPLICATIONS (LOS)
+// ============================================================
+
+model LoanApplication {
+  id                String    @id @default(cuid())
+  companyId         String
+  branchId          String?
+  applicationNumber String    // Auto-generated: LA-2026-000001
+  customerId        String
+  loanProductId     String
+  leadId            String?   // Source lead (if converted from lead)
+  requestedAmount   BigInt    // paise
+  approvedAmount    BigInt?   // paise (may differ from requested)
+  interestRateBps   Int?      // basis points (set at sanction)
+  tenureMonths      Int
+  purpose           String?
+  status            String    @default("DRAFT")
+  // DRAFT | SUBMITTED | UNDER_REVIEW | APPROVED | SANCTIONED |
+  // DISBURSEMENT_PENDING | DISBURSED | REJECTED | CANCELLED
+  rejectionReason   String?
+  rejectionCode     String?
+  rejectedBy        String?
+  rejectedAt        DateTime?
+  sanctionedAt      DateTime?
+  disbursedAt       DateTime?
+  loanAccountId     String?   // Created on disbursement
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+  createdBy         String?
+  updatedBy         String?
+
+  documents         Document[]
+  appraisal         CreditAppraisal?
+  approvalRequests  ApprovalRequest[]
+  sanctionConditions SanctionCondition[]
+  disbursement      Disbursement?
+
+  @@unique([companyId, applicationNumber])
+  @@index([companyId])
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================
+// DOCUMENTS
+// ============================================================
+
+model Document {
+  id                String    @id @default(cuid())
+  companyId         String
+  entityType        String    // CUSTOMER | LOAN_APPLICATION | LOAN_ACCOUNT
+  entityId          String
+  loanApplicationId String?
+  documentType      String
+  // PAN_CARD | AADHAAR | ADDRESS_PROOF | INCOME_PROOF | BANK_STATEMENT |
+  // PHOTO | SALARY_SLIP | ITR | GST_CERTIFICATE | COLLATERAL_PHOTO |
+  // LOAN_AGREEMENT | SANCTION_LETTER | KFS | NOC | RECEIPT | OTHER
+  fileName          String
+  filePath          String
+  fileSize          Int?
+  mimeType          String?
+  status            String    @default("UPLOADED") // UPLOADED | VERIFIED | REJECTED | EXPIRED
+  verifiedBy        String?
+  verifiedAt        DateTime?
+  rejectionReason   String?
+  expiryDate        DateTime?
+  templateVersion   String?   // For generated docs: which template version was used
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  createdBy         String?
+
+  loanApplication   LoanApplication? @relation(fields: [loanApplicationId], references: [id])
+
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@index([loanApplicationId])
+  @@index([documentType])
+}
+
+// ============================================================
+// CREDIT APPRAISAL
+// ============================================================
+
+model CreditAppraisal {
+  id                  String    @id @default(cuid())
+  loanApplicationId   String    @unique
+  scorecardResults    String?   // JSON: checklist items with scores
+  creditScore         Int?      // Bureau score if pulled
+  creditPullId        String?   // Reference to future CreditPull
+  riskCategory        String    @default("MEDIUM") // LOW | MEDIUM | HIGH
+  recommendation      String?   // APPROVE | REJECT | REFER
+  manualOverride      Boolean   @default(false)
+  overrideReason      String?
+  debtToIncomeRatio   Int?      // basis points (4500 = 45%)
+  existingObligations BigInt?   // paise — existing EMIs from bureau/AA
+  remarks             String?
+  appraisedBy         String?
+  appraisedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  loanApplication     LoanApplication @relation(fields: [loanApplicationId], references: [id])
+}
+
+// ============================================================
+// APPROVAL WORKFLOW (Maker-Checker)
+// ============================================================
+
+model ApprovalRequest {
+  id                  String    @id @default(cuid())
+  companyId           String
+  entityType          String    // LOAN_APPLICATION | PAYMENT_WAIVER | WRITE_OFF | etc.
+  entityId            String
+  loanApplicationId   String?
+  level               Int       @default(1) // Approval level (1, 2, 3...)
+  requiredLevels      Int       @default(1) // Total levels needed
+  status              String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  requestedBy         String
+  requestedAt         DateTime  @default(now())
+  approvedBy          String?
+  approvedAt          DateTime?
+  rejectedBy          String?
+  rejectedAt          DateTime?
+  remarks             String?
+
+  loanApplication     LoanApplication? @relation(fields: [loanApplicationId], references: [id])
+
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([loanApplicationId])
+}
+
+// ============================================================
+// SANCTION CONDITIONS
+// ============================================================
+
+model SanctionCondition {
+  id                  String    @id @default(cuid())
+  loanApplicationId   String
+  condition           String    // Description of the condition
+  isMandatory         Boolean   @default(true)
+  isMet               Boolean   @default(false)
+  metAt               DateTime?
+  verifiedBy          String?
+  remarks             String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  loanApplication     LoanApplication @relation(fields: [loanApplicationId], references: [id])
+
+  @@index([loanApplicationId])
+}
+
+// ============================================================
+// DISBURSEMENT
+// ============================================================
+
+model Disbursement {
+  id                  String    @id @default(cuid())
+  loanApplicationId   String    @unique
+  amount              BigInt    // paise — actual disbursed amount
+  mode                String    // NEFT | RTGS | IMPS | CHEQUE | CASH
+  bankAccountId       String?   // Customer bank account
+  referenceNumber     String?   // Transaction reference
+  disbursedAt         DateTime
+  disbursedBy         String
+  kfsDocumentId       String?   // Generated KFS document
+  agreementDocumentId String?   // Generated agreement document
+  journalEntryId      String?   // Accounting entry
+  remarks             String?
+  createdAt           DateTime  @default(now())
+
+  loanApplication     LoanApplication @relation(fields: [loanApplicationId], references: [id])
+
+  @@index([loanApplicationId])
+}
+
+// ============================================================
+// LOAN ACCOUNTS (Active Loans)
+// ============================================================
+
+model LoanAccount {
+  id                  String    @id @default(cuid())
+  companyId           String
+  branchId            String?
+  accountNumber       String    // Auto-generated: LN-2026-000001
+  loanApplicationId   String    @unique
+  customerId          String
+  loanProductId       String
+  principalAmount     BigInt    // paise — original disbursed
+  outstandingPrincipal BigInt   // paise — current outstanding
+  interestRateBps     Int       // basis points
+  interestMethod      String    // DAILY_REDUCING | MONTHLY_REDUCING | FLAT_RATE
+  interestType        String    @default("FIXED") // FIXED | FLOATING | HYBRID
+  tenureMonths        Int
+  emiAmount           BigInt    // paise — standard EMI
+  disbursedAt         DateTime
+  maturityDate        DateTime
+  nextEmiDate         DateTime?
+  dpd                 Int       @default(0) // Days Past Due
+  smaClassification   String?   // SMA_0 | SMA_1 | SMA_2
+  npaClassification   String?   // SUB_STANDARD | DOUBTFUL | LOSS
+  npaDate             DateTime?
+  status              String    @default("ACTIVE")
+  // ACTIVE | OVERDUE | NPA | CLOSED | WRITTEN_OFF | SETTLED | FORECLOSED
+  closedAt            DateTime?
+  closureType         String?   // NORMAL | FORECLOSURE | SETTLEMENT | WRITE_OFF
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  emiSchedule         EmiScheduleRow[]
+  payments            Payment[]
+
+  @@unique([companyId, accountNumber])
+  @@index([companyId])
+  @@index([customerId])
+  @@index([status])
+  @@index([dpd])
+}
+
+model EmiScheduleRow {
+  id                  String    @id @default(cuid())
+  loanAccountId       String
+  installmentNumber   Int
+  dueDate             DateTime
+  emiAmount           BigInt    // paise
+  principalComponent  BigInt    // paise
+  interestComponent   BigInt    // paise
+  openingBalance      BigInt    // paise
+  closingBalance      BigInt    // paise
+  status              String    @default("UPCOMING")
+  // UPCOMING | DUE | PAID | PARTIALLY_PAID | OVERDUE
+  paidAmount          BigInt    @default(0) // paise
+  paidDate            DateTime?
+  daysOverdue         Int       @default(0)
+  penalInterest       BigInt    @default(0) // paise
+
+  loanAccount         LoanAccount @relation(fields: [loanAccountId], references: [id])
+
+  @@unique([loanAccountId, installmentNumber])
+  @@index([loanAccountId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model Payment {
+  id                  String    @id @default(cuid())
+  companyId           String
+  loanAccountId       String
+  amount              BigInt    // paise — total payment amount
+  mode                String    // CASH | CHEQUE | UPI | NEFT | NACH | RTGS
+  referenceNumber     String?
+  receivedDate        DateTime
+  allocatedToPrincipal BigInt   @default(0) // paise
+  allocatedToInterest  BigInt   @default(0) // paise
+  allocatedToPenalty   BigInt   @default(0) // paise
+  allocatedToFees      BigInt   @default(0) // paise
+  isBounced           Boolean  @default(false)
+  bounceReason        String?
+  bounceCharges       BigInt   @default(0) // paise
+  status              String   @default("RECEIVED") // RECEIVED | ALLOCATED | BOUNCED | REVERSED
+  receiptNumber       String?
+  receiptDocumentId   String?
+  journalEntryId      String?
+  createdAt           DateTime @default(now())
+  createdBy           String?
+
+  loanAccount         LoanAccount @relation(fields: [loanAccountId], references: [id])
+
+  @@index([companyId])
+  @@index([loanAccountId])
+  @@index([receivedDate])
+  @@index([status])
+}
