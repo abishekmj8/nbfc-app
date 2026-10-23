@@ -52,6 +52,7 @@ const lendingItems: NavItem[] = [
 
 const accountingItems: NavItem[] = [
   { label: "Chart of Accounts", href: "/accounting/chart-of-accounts", icon: <Calculator size={18} /> },
+  { label: "Day Book", href: "/accounting/day-book", icon: <Calculator size={18} /> },
   { label: "Trial Balance", href: "/accounting/trial-balance", icon: <Calculator size={18} /> },
   { label: "Profit & Loss", href: "/accounting/profit-loss", icon: <Calculator size={18} /> },
   { label: "Balance Sheet", href: "/accounting/balance-sheet", icon: <Calculator size={18} /> },

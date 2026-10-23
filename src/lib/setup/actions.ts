@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 import { createAuditLog } from "@/lib/audit/service";
+import { seedChartOfAccounts } from "@/lib/accounting/service";
 import { headers } from "next/headers";
 
 const setupSchema = z.object({
@@ -186,15 +187,14 @@ export async function setupAction(
 
       // Set app version
       await tx.systemConfig.create({
-        data: {
-          companyId: company.id,
-          key: "app.version",
-          value: "0.1.0",
-        },
+        data: { companyId: company.id, key: "app.version", value: "0.1.0" },
       });
 
       return { company, adminUser };
     });
+
+    // Seed Chart of Accounts (outside transaction — uses many inserts)
+    await seedChartOfAccounts(result.company.id);
 
     // Create session for the new admin
     const headersList = await headers();
