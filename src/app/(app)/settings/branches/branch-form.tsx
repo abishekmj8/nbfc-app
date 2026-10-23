@@ -2,6 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { createBranchAction, type BranchFormState } from "@/lib/company/actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus } from "lucide-react";
 
 const initialState: BranchFormState = {};
 
@@ -10,66 +15,32 @@ export function BranchForm() {
   const [showForm, setShowForm] = useState(false);
 
   if (!showForm) {
-    return (
-      <button
-        onClick={() => setShowForm(true)}
-        className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
-      >
-        Add Branch
-      </button>
-    );
+    return <Button onClick={() => setShowForm(true)}><Plus size={16} /> Add Branch</Button>;
   }
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">New Branch</h3>
+    <Card>
+      <CardHeader><CardTitle>New Branch</CardTitle></CardHeader>
+      <CardContent>
+        {state.error && <div className="mb-3 p-2 rounded bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm">{state.error}</div>}
+        {state.success && <div className="mb-3 p-2 rounded bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 text-sm">Branch created</div>}
 
-      {state.error && (
-        <div className="mb-3 p-2 rounded bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-300 text-sm">
-          {state.error}
-        </div>
-      )}
-
-      {state.success && (
-        <div className="mb-3 p-2 rounded bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 text-sm">
-          Branch created successfully
-        </div>
-      )}
-
-      <form action={formAction} className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="name" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Branch Name *</label>
-            <input id="name" name="name" required className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />
-            {state.fieldErrors?.name?.map((e) => <p key={e} className="text-xs text-red-500 mt-1">{e}</p>)}
+        <form action={formAction} className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Branch Name *</Label><Input name="name" required className="mt-1" /></div>
+            <div><Label>Code *</Label><Input name="code" required maxLength={10} placeholder="e.g., MUM01" className="mt-1 uppercase" /></div>
           </div>
-          <div>
-            <label htmlFor="code" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Code *</label>
-            <input id="code" name="code" required maxLength={10} placeholder="e.g., MUM01" className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 uppercase" />
+          <div className="grid grid-cols-3 gap-3">
+            <div><Label>City</Label><Input name="city" className="mt-1" /></div>
+            <div><Label>State</Label><Input name="state" className="mt-1" /></div>
+            <div><Label>Pincode</Label><Input name="pincode" className="mt-1" /></div>
           </div>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <input name="city" placeholder="City" className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />
-          <input name="state" placeholder="State" className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />
-          <input name="pincode" placeholder="Pincode" className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={isPending}
-            className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded transition-colors"
-          >
-            {isPending ? "Creating..." : "Create Branch"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowForm(false)}
-            className="px-4 py-1.5 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={isPending}>{isPending ? "Creating..." : "Create Branch"}</Button>
+            <Button type="button" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
