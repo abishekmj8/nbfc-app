@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   BarChart3,
   Contact,
+  Package,
 } from "lucide-react";
 import { logoutAction } from "@/lib/auth/actions";
 
@@ -47,6 +48,7 @@ const settingsItems: NavItem[] = [
   { label: "Company", href: "/settings/company", icon: <Building2 size={18} /> },
   { label: "Branches", href: "/settings/branches", icon: <Building2 size={18} /> },
   { label: "Users", href: "/settings/users", icon: <Users size={18} /> },
+  { label: "Loan Products", href: "/settings/loan-products", icon: <Package size={18} /> },
   { label: "Modules", href: "/settings/modules", icon: <Puzzle size={18} /> },
   { label: "Holidays", href: "/settings/holidays", icon: <CalendarDays size={18} /> },
   { label: "Audit Log", href: "/settings/audit-log", icon: <ScrollText size={18} /> },
