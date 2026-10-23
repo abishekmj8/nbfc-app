@@ -18,6 +18,17 @@ import {
   BarChart3,
   Contact,
   Package,
+  Calculator,
+  AlertTriangle,
+  ListTodo,
+  Gem,
+  Car,
+  UsersRound,
+  Handshake,
+  Shield,
+  Briefcase,
+  Vault,
+  BadgeCheck,
 } from "lucide-react";
 import { logoutAction } from "@/lib/auth/actions";
 
@@ -39,9 +50,29 @@ const lendingItems: NavItem[] = [
   { label: "Collections", href: "/collections", icon: <Receipt size={18} /> },
 ];
 
+const accountingItems: NavItem[] = [
+  { label: "Chart of Accounts", href: "/accounting/chart-of-accounts", icon: <Calculator size={18} /> },
+  { label: "Trial Balance", href: "/accounting/trial-balance", icon: <Calculator size={18} /> },
+  { label: "Profit & Loss", href: "/accounting/profit-loss", icon: <Calculator size={18} /> },
+  { label: "Balance Sheet", href: "/accounting/balance-sheet", icon: <Calculator size={18} /> },
+  { label: "Treasury", href: "/treasury", icon: <Vault size={18} /> },
+];
+
+const moreItems: NavItem[] = [
+  { label: "Gold Loans", href: "/gold-loans", icon: <Gem size={18} /> },
+  { label: "Vehicle Loans", href: "/vehicle-loans", icon: <Car size={18} /> },
+  { label: "Microfinance", href: "/microfinance", icon: <UsersRound size={18} /> },
+  { label: "Co-Lending", href: "/co-lending", icon: <Handshake size={18} /> },
+  { label: "Insurance", href: "/insurance", icon: <Shield size={18} /> },
+  { label: "DSA Partners", href: "/dsa", icon: <Briefcase size={18} /> },
+];
+
 const analyticsItems: NavItem[] = [
   { label: "Reports", href: "/reports", icon: <BarChart3 size={18} /> },
   { label: "Compliance", href: "/compliance", icon: <ShieldCheck size={18} /> },
+  { label: "Early Warning", href: "/ews", icon: <AlertTriangle size={18} /> },
+  { label: "Tasks", href: "/tasks", icon: <ListTodo size={18} /> },
+  { label: "HR", href: "/hr", icon: <BadgeCheck size={18} /> },
 ];
 
 const settingsItems: NavItem[] = [
@@ -80,6 +111,28 @@ export function Sidebar() {
           </p>
           <div className="space-y-1">
             {lendingItems.map((item) => (
+              <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Accounting
+          </p>
+          <div className="space-y-1">
+            {accountingItems.map((item) => (
+              <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            More
+          </p>
+          <div className="space-y-1">
+            {moreItems.map((item) => (
               <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} />
             ))}
           </div>
