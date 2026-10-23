@@ -1,0 +1,22 @@
+version: "3.8"
+
+# Development: just the database. App runs locally with `pnpm dev`.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=nbfc
+      - POSTGRES_PASSWORD=nbfc
+      - POSTGRES_DB=nbfc
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nbfc"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata-dev:

@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// CORE: Company & Branch
+// ============================================================
+
+model Company {
+  id                  String   @id @default(cuid())
+  name                String
+  rbiRegistrationNo   String?
+  panNumber           String?
+  gstNumber           String?
+  address             String?
+  city                String?
+  state               String?
+  pincode             String?
+  phone               String?
+  email               String?
+  website             String?
+  logoUrl             String?
+  primaryColor        String   @default("#1e40af")
+  accentColor         String   @default("#3b82f6")
+  financialYearStart  Int      @default(4) // Month number (4 = April)
+  sbrLayer            String   @default("BASE") // BASE | MIDDLE | UPPER | TOP
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  branches Branch[]
+  users    User[]
+  roles    Role[]
+  holidays Holiday[]
+}
+
+model Branch {
+  id           String    @id @default(cuid())
+  companyId    String
+  name         String
+  code         String
+  address      String?
+  city         String?
+  state        String?
+  pincode      String?
+  phone        String?
+  email        String?
+  timezone     String    @default("Asia/Kolkata")
+  isHeadOffice Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  company Company @relation(fields: [companyId], references: [id])
+  users   User[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+// ============================================================
+// CORE: Users, Roles, Permissions, Sessions
+// ============================================================
+
+model User {
+  id              String    @id @default(cuid())
+  companyId       String
+  branchId        String?
+  email           String
+  passwordHash    String
+  firstName       String
+  lastName        String?
+  phone           String?
+  roleId          String
+  status          String    @default("ACTIVE") // ACTIVE | DEACTIVATED
+  preferredLocale String    @default("en")
+  lastLoginAt     DateTime?
+  passwordChangedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  createdBy       String?
+  updatedBy       String?
+
+  company  Company   @relation(fields: [companyId], references: [id])
+  branch   Branch?   @relation(fields: [branchId], references: [id])
+  role     Role      @relation(fields: [roleId], references: [id])
+  sessions Session[]
+
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@index([branchId])
+  @@index([roleId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) // System roles can't be deleted
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company      @relation(fields: [companyId], references: [id])
+  permissions Permission[]
+  users       User[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model Permission {
+  id     String @id @default(cuid())
+  roleId String
+  module String // e.g., "loans", "customers", "settings"
+  action String // VIEW | CREATE | EDIT | APPROVE | DELETE
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, module, action])
+  @@index([roleId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ============================================================
+// CORE: Audit Trail
+// ============================================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  companyId  String?
+  userId     String?
+  userEmail  String?
+  action     String   // CREATE | UPDATE | DELETE | LOGIN | LOGOUT | EXPORT | etc.
+  entityType String   // e.g., "User", "LoanAccount", "Payment"
+  entityId   String?
+  before     String?  // JSON snapshot before change
+  after      String?  // JSON snapshot after change
+  ipAddress  String?
+  userAgent  String?
+  metadata   String?  // Additional context (JSON)
+  createdAt  DateTime @default(now())
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ============================================================
+// CORE: System Configuration
+// ============================================================
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  companyId String?
+  key       String
+  value     String   // JSON-encoded value
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, key])
+}
+
+// ============================================================
+// CORE: Holiday Calendar
+// ============================================================
+
+model Holiday {
+  id        String   @id @default(cuid())
+  companyId String
+  branchId  String?  // null = company-wide
+  name      String
+  date      DateTime
+  type      String   @default("CUSTOM") // NATIONAL | STATE | CUSTOM
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  createdBy String?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([date])
+}

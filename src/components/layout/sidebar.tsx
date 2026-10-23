@@ -1,0 +1,98 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Settings,
+  ScrollText,
+  Building2,
+  Users,
+  CalendarDays,
+  Puzzle,
+  LogOut,
+} from "lucide-react";
+import { logoutAction } from "@/lib/auth/actions";
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+}
+
+const navItems: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard size={18} /> },
+];
+
+const settingsItems: NavItem[] = [
+  { label: "Company", href: "/settings/company", icon: <Building2 size={18} /> },
+  { label: "Branches", href: "/settings/branches", icon: <Building2 size={18} /> },
+  { label: "Users", href: "/settings/users", icon: <Users size={18} /> },
+  { label: "Modules", href: "/settings/modules", icon: <Puzzle size={18} /> },
+  { label: "Holidays", href: "/settings/holidays", icon: <CalendarDays size={18} /> },
+  { label: "Audit Log", href: "/settings/audit-log", icon: <ScrollText size={18} /> },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+
+  return (
+    <aside className="w-60 h-screen sticky top-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 flex flex-col">
+      {/* Logo */}
+      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-800">
+        <span className="text-lg font-bold text-gray-900 dark:text-gray-100">
+          NBFC Manager
+        </span>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-4 px-2">
+        <div className="space-y-1">
+          {navItems.map((item) => (
+            <NavLink key={item.href} item={item} active={pathname === item.href} />
+          ))}
+        </div>
+
+        <div className="mt-6">
+          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Settings
+          </p>
+          <div className="space-y-1">
+            {settingsItems.map((item) => (
+              <NavLink key={item.href} item={item} active={pathname === item.href} />
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* Logout */}
+      <div className="p-2 border-t border-gray-200 dark:border-gray-800">
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
+          >
+            <LogOut size={18} />
+            Sign Out
+          </button>
+        </form>
+      </div>
+    </aside>
+  );
+}
+
+function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+  return (
+    <Link
+      href={item.href}
+      className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+        active
+          ? "bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-medium"
+          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+      }`}
+    >
+      {item.icon}
+      {item.label}
+    </Link>
+  );
+}
