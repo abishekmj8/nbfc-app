@@ -5,6 +5,7 @@ import { formatMoney } from "@/lib/utils/money";
 import { formatDate } from "@/lib/utils/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FileUpload, DocumentList } from "@/components/shared/file-upload";
 import Link from "next/link";
 
 interface PageProps {
@@ -26,11 +27,18 @@ export default async function CustomerDetailPage({ params }: PageProps) {
 
   if (!customer) notFound();
 
-  const loans = await prisma.loanAccount.findMany({
-    where: { customerId: id },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-  });
+  const [loans, documents] = await Promise.all([
+    prisma.loanAccount.findMany({
+      where: { customerId: id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+    prisma.document.findMany({
+      where: { entityType: "CUSTOMER", entityId: id },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, documentType: true, fileName: true, status: true, createdAt: true },
+    }),
+  ]);
 
   const kycVariant = customer.kycStatus === "VERIFIED" ? "success"
     : customer.kycStatus === "PARTIAL" ? "warning"
@@ -128,6 +136,23 @@ export default async function CustomerDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* KYC Documents */}
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>KYC Documents ({documents.length})</CardTitle>
+            <div className="flex gap-2">
+              <FileUpload entityType="CUSTOMER" entityId={customer.id} documentType="PAN_CARD" label="Upload PAN" />
+              <FileUpload entityType="CUSTOMER" entityId={customer.id} documentType="AADHAAR" label="Upload Aadhaar" />
+              <FileUpload entityType="CUSTOMER" entityId={customer.id} documentType="ADDRESS_PROOF" label="Upload Address Proof" />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <DocumentList documents={documents.map((d) => ({ ...d, createdAt: d.createdAt.toISOString() }))} />
+        </CardContent>
+      </Card>
 
       {/* Loans */}
       {loans.length > 0 && (
