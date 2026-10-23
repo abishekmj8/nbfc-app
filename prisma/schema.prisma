@@ -779,3 +779,317 @@ model Payment {
   @@index([receivedDate])
   @@index([status])
 }
+
+// ============================================================
+// GOLD LOAN OPERATIONS
+// ============================================================
+
+model GoldAppraisal {
+  id              String   @id @default(cuid())
+  companyId       String
+  loanAccountId   String?
+  loanApplicationId String?
+  itemDescription String   // "22K Gold Chain", "24K Gold Bangle"
+  grossWeight     Int      // milligrams (1000 = 1 gram)
+  purity          Int      // karat (22, 24, etc.)
+  stoneDeduction  Int      @default(0) // milligrams
+  netWeight       Int      // grossWeight - stoneDeduction (milligrams)
+  ratePerGram     BigInt   // paise per gram (from daily gold rate)
+  valuationAmount BigInt   // paise = netWeight/1000 * ratePerGram * purity/24
+  ltvPercent      Int      @default(7500) // basis points (7500 = 75%)
+  maxLoanAmount   BigInt   // paise = valuationAmount * ltvPercent / 10000
+  packetId        String?  // Vault packet reference
+  vaultBranchId   String?  // Branch where gold is stored
+  photoUrl        String?
+  status          String   @default("APPRAISED") // APPRAISED | PLEDGED | RELEASED | AUCTIONED
+  releasedAt      DateTime?
+  auctionedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  appraisedBy     String?
+
+  @@index([companyId])
+  @@index([loanAccountId])
+  @@index([status])
+}
+
+model GoldRate {
+  id          String   @id @default(cuid())
+  companyId   String
+  date        DateTime
+  rate22K     BigInt   // paise per gram for 22K
+  rate24K     BigInt   // paise per gram for 24K
+  source      String   @default("MANUAL") // MANUAL | IBJA
+  createdAt   DateTime @default(now())
+  createdBy   String?
+
+  @@unique([companyId, date])
+  @@index([companyId])
+}
+
+model GoldAuction {
+  id              String    @id @default(cuid())
+  companyId       String
+  loanAccountId   String
+  appraisalId     String
+  noticeDate      DateTime  // Must be >= 14 days before auction
+  auctionDate     DateTime
+  reservePrice    BigInt    // paise — minimum bid
+  soldPrice       BigInt?   // paise — actual sale price
+  surplusAmount   BigInt?   // paise — returned to borrower (soldPrice - outstanding)
+  buyerDetails    String?
+  status          String    @default("NOTICE_SENT") // NOTICE_SENT | SCHEDULED | COMPLETED | CANCELLED
+  noticeDocumentId String?
+  createdAt       DateTime  @default(now())
+  createdBy       String?
+
+  @@index([companyId])
+  @@index([loanAccountId])
+}
+
+// ============================================================
+// VEHICLE LOAN OPERATIONS
+// ============================================================
+
+model VehicleDetail {
+  id              String    @id @default(cuid())
+  companyId       String
+  loanAccountId   String?
+  loanApplicationId String?
+  vehicleType     String    // TWO_WHEELER | CAR | COMMERCIAL | TRACTOR
+  make            String    // Maruti, Honda, etc.
+  model           String    // Swift, City, etc.
+  variant         String?
+  yearOfMfg       Int
+  registrationNo  String?
+  engineNo        String?
+  chassisNo       String?
+  color           String?
+  purchasePrice   BigInt?   // paise
+  hypothecationStatus String @default("PENDING") // PENDING | FILED | REMOVED
+  hypothecationFiledAt DateTime?
+  hypothecationRemovedAt DateTime?
+  rtoCode         String?
+  insuranceProvider String?
+  insurancePolicyNo String?
+  insuranceExpiryDate DateTime?
+  repossessed     Boolean   @default(false)
+  repossessedAt   DateTime?
+  repossessionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([loanAccountId])
+  @@index([registrationNo])
+}
+
+model Dealer {
+  id              String    @id @default(cuid())
+  companyId       String
+  name            String
+  contactPerson   String?
+  phone           String?
+  email           String?
+  address         String?
+  city            String?
+  state           String?
+  gstNumber       String?
+  dealerType      String    @default("VEHICLE") // VEHICLE | EQUIPMENT
+  status          String    @default("ACTIVE") // ACTIVE | SUSPENDED | TERMINATED
+  totalLoansSourced Int     @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  @@index([companyId])
+}
+
+// ============================================================
+// MICROFINANCE OPERATIONS
+// ============================================================
+
+model MfiGroup {
+  id              String    @id @default(cuid())
+  companyId       String
+  branchId        String?
+  groupName       String
+  groupCode       String
+  groupType       String    @default("JLG") // JLG | SHG
+  centerId        String?
+  fieldOfficerId  String?   // Assigned officer
+  formationDate   DateTime
+  memberCount     Int       @default(0)
+  status          String    @default("ACTIVE") // ACTIVE | DISSOLVED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  members         MfiGroupMember[]
+  meetings        MfiMeeting[]
+
+  @@unique([companyId, groupCode])
+  @@index([companyId])
+  @@index([branchId])
+}
+
+model MfiGroupMember {
+  id              String    @id @default(cuid())
+  groupId         String
+  customerId      String
+  role            String    @default("MEMBER") // LEADER | SECRETARY | MEMBER
+  joinedAt        DateTime  @default(now())
+  leftAt          DateTime?
+  status          String    @default("ACTIVE") // ACTIVE | LEFT | DEFAULTED
+
+  group           MfiGroup  @relation(fields: [groupId], references: [id])
+
+  @@unique([groupId, customerId])
+  @@index([groupId])
+  @@index([customerId])
+}
+
+model MfiMeeting {
+  id              String    @id @default(cuid())
+  groupId         String
+  meetingDate     DateTime
+  meetingType     String    @default("REGULAR") // REGULAR | CGT | SPECIAL
+  attendance      String?   // JSON: [{customerId, present: bool}]
+  collectionAmount BigInt?  // paise — total collected at meeting
+  notes           String?
+  conductedBy     String?
+  status          String    @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELLED
+  createdAt       DateTime  @default(now())
+
+  group           MfiGroup  @relation(fields: [groupId], references: [id])
+
+  @@index([groupId])
+  @@index([meetingDate])
+}
+
+// ============================================================
+// CO-LENDING & LOAN ASSIGNMENT
+// ============================================================
+
+model CoLendingPartner {
+  id              String    @id @default(cuid())
+  companyId       String
+  partnerName     String
+  partnerType     String    // BANK | NBFC | HFC
+  contactPerson   String?
+  phone           String?
+  email           String?
+  agreementDate   DateTime?
+  defaultNbfcSharePct Int   @default(2000) // basis points (2000 = 20%)
+  status          String    @default("ACTIVE") // ACTIVE | SUSPENDED | TERMINATED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  coLendingLoans  CoLendingLoan[]
+
+  @@index([companyId])
+}
+
+model CoLendingLoan {
+  id              String    @id @default(cuid())
+  loanAccountId   String
+  partnerId       String
+  model           String    // CLM1 | LOAN_ASSIGNMENT
+  nbfcSharePct    Int       // basis points (2000 = 20%)
+  partnerSharePct Int       // basis points (8000 = 80%)
+  nbfcAmount      BigInt    // paise
+  partnerAmount   BigInt    // paise
+  servicingRights String    @default("NBFC") // NBFC | PARTNER | SHARED
+  status          String    @default("ACTIVE") // ACTIVE | SETTLED | BUYBACK
+  assignmentDate  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  partner         CoLendingPartner @relation(fields: [partnerId], references: [id])
+
+  @@index([loanAccountId])
+  @@index([partnerId])
+}
+
+// ============================================================
+// CREDIT LIFE INSURANCE
+// ============================================================
+
+model InsurancePolicy {
+  id              String    @id @default(cuid())
+  companyId       String
+  loanAccountId   String
+  customerId      String
+  provider        String
+  policyNumber    String
+  policyType      String    @default("CREDIT_LIFE") // CREDIT_LIFE | HEALTH | PROPERTY | VEHICLE
+  coverAmount     BigInt    // paise — sum assured
+  premiumAmount   BigInt    // paise — total premium
+  premiumGst      BigInt    @default(0) // paise
+  premiumMode     String    @default("SINGLE_UPFRONT") // SINGLE_UPFRONT | MONTHLY | ANNUAL
+  startDate       DateTime
+  endDate         DateTime
+  nomineeName     String?
+  nomineeRelation String?
+  bundledWithLoan Boolean   @default(false)
+  borrowerConsented Boolean @default(true)
+  status          String    @default("ACTIVE") // ACTIVE | LAPSED | CLAIMED | CANCELLED | EXPIRED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([loanAccountId])
+  @@index([customerId])
+}
+
+// ============================================================
+// DSA / PARTNER CHANNEL
+// ============================================================
+
+model DsaPartner {
+  id              String    @id @default(cuid())
+  companyId       String
+  type            String    @default("INDIVIDUAL") // INDIVIDUAL | CORPORATE | FINTECH
+  name            String
+  contactPerson   String?
+  phone           String
+  email           String?
+  panNumber       String?
+  gstNumber       String?
+  address         String?
+  commissionPct   Int       @default(100) // basis points (100 = 1%)
+  tdsRatePct      Int       @default(500) // basis points (500 = 5%)
+  apiEnabled      Boolean   @default(false)
+  apiKeyHash      String?   // Hashed API key
+  status          String    @default("ACTIVE") // ACTIVE | SUSPENDED | TERMINATED
+  clawbackMonths  Int       @default(3) // Clawback period
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  payouts         DsaPayout[]
+
+  @@index([companyId])
+}
+
+model DsaPayout {
+  id              String    @id @default(cuid())
+  dsaPartnerId    String
+  loanAccountId   String
+  loanAmount      BigInt    // paise — disbursed amount
+  commissionAmount BigInt   // paise
+  gstOnCommission BigInt    @default(0) // paise
+  tdsDeducted     BigInt    @default(0) // paise
+  netPayout       BigInt    // paise
+  status          String    @default("CALCULATED") // CALCULATED | APPROVED | PAID | CLAWED_BACK
+  paidAt          DateTime?
+  paymentReference String?
+  clawedBack      Boolean   @default(false)
+  clawbackReason  String?
+  createdAt       DateTime  @default(now())
+
+  dsaPartner      DsaPartner @relation(fields: [dsaPartnerId], references: [id])
+
+  @@index([dsaPartnerId])
+  @@index([loanAccountId])
+}
