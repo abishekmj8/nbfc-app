@@ -14,6 +14,8 @@ import {
   FileText,
   Landmark,
   Receipt,
+  ShieldCheck,
+  BarChart3,
 } from "lucide-react";
 import { logoutAction } from "@/lib/auth/actions";
 
@@ -32,6 +34,11 @@ const lendingItems: NavItem[] = [
   { label: "Applications", href: "/loans/applications", icon: <FileText size={18} /> },
   { label: "Loan Accounts", href: "/loans", icon: <Landmark size={18} /> },
   { label: "Collections", href: "/collections", icon: <Receipt size={18} /> },
+];
+
+const analyticsItems: NavItem[] = [
+  { label: "Reports", href: "/reports", icon: <BarChart3 size={18} /> },
+  { label: "Compliance", href: "/compliance", icon: <ShieldCheck size={18} /> },
 ];
 
 const settingsItems: NavItem[] = [
@@ -69,6 +76,17 @@ export function Sidebar() {
           </p>
           <div className="space-y-1">
             {lendingItems.map((item) => (
+              <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <p className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+            Analytics
+          </p>
+          <div className="space-y-1">
+            {analyticsItems.map((item) => (
               <NavLink key={item.href} item={item} active={pathname.startsWith(item.href)} />
             ))}
           </div>
