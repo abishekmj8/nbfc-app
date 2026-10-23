@@ -204,3 +204,251 @@ model Holiday {
   @@index([companyId])
   @@index([date])
 }
+
+// ============================================================
+// CUSTOMERS
+// ============================================================
+
+model Customer {
+  id              String    @id @default(cuid())
+  companyId       String
+  branchId        String?
+  customerCode    String?   // Auto-generated or manual
+  firstName       String
+  lastName        String?
+  fatherName      String?
+  dateOfBirth     DateTime?
+  gender          String?   // MALE | FEMALE | OTHER
+  maritalStatus   String?   // SINGLE | MARRIED | WIDOWED | DIVORCED
+  occupation      String?
+  employerName    String?
+  monthlyIncome   BigInt?   // paise
+  phone           String
+  alternatePhone  String?
+  email           String?
+  photoUrl        String?
+  preferredLanguage String  @default("en")
+  customerType    String    @default("INDIVIDUAL") // INDIVIDUAL | CORPORATE | PARTNERSHIP | TRUST
+  riskCategory    String    @default("LOW") // LOW | MEDIUM | HIGH
+  kycStatus       String    @default("PENDING") // PENDING | PARTIAL | VERIFIED | EXPIRED
+  status          String    @default("ACTIVE") // ACTIVE | INACTIVE | BLACKLISTED
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  createdBy       String?
+  updatedBy       String?
+
+  identities      CustomerIdentity[]
+  addresses       CustomerAddress[]
+  bankAccounts    CustomerBankAccount[]
+  consents        ConsentRecord[]
+
+  @@unique([companyId, customerCode])
+  @@index([companyId])
+  @@index([branchId])
+  @@index([phone])
+  @@index([status])
+}
+
+model CustomerIdentity {
+  id              String    @id @default(cuid())
+  customerId      String
+  documentType    String    // PAN | AADHAAR | VOTER_ID | PASSPORT | DRIVING_LICENSE
+  documentNumber  String?   // Encrypted for PAN; null for Aadhaar (use vault)
+  maskedNumber    String?   // Last 4 digits or masked version for display
+  aadhaarVaultId  String?   // Pointer to AadhaarVault entry (Aadhaar only)
+  isVerified      Boolean   @default(false)
+  verifiedAt      DateTime?
+  verificationMode String?  // API | MANUAL | EKYC_OTP | EKYC_BIOMETRIC | OFFLINE_XML
+  expiryDate      DateTime?
+  documentUrl     String?   // Path to uploaded document image
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  customer        Customer  @relation(fields: [customerId], references: [id])
+
+  @@unique([customerId, documentType])
+  @@index([customerId])
+}
+
+// Separate encrypted table per ADR-007 — Aadhaar numbers stored here only
+model AadhaarVault {
+  id                    String   @id @default(cuid())
+  encryptedAadhaarNumber String  // AES-256 encrypted
+  lastFourDigits        String   // For display: xxxx-xxxx-{last4}
+  createdAt             DateTime @default(now())
+
+  // No relations to prevent accidental joins. Access via aadhaarVaultId on CustomerIdentity.
+}
+
+model CustomerAddress {
+  id            String    @id @default(cuid())
+  customerId    String
+  type          String    // CURRENT | PERMANENT | OFFICE
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  state         String
+  pincode       String
+  landmark      String?
+  residingSince DateTime?
+  ownershipType String?   // OWNED | RENTED | FAMILY | COMPANY_PROVIDED
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  customer      Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+}
+
+model CustomerBankAccount {
+  id              String    @id @default(cuid())
+  customerId      String
+  bankName        String
+  branchName      String?
+  ifscCode        String
+  accountNumber   String    // Encrypted
+  maskedAccount   String    // e.g., XXXXXXXX1234
+  accountType     String    // SAVINGS | CURRENT | OVERDRAFT | NRO | NRE
+  isPrimary       Boolean   @default(false)
+  isVerified      Boolean   @default(false)
+  verifiedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  customer        Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+}
+
+// ============================================================
+// CONSENT MANAGEMENT
+// ============================================================
+
+model ConsentRecord {
+  id              String    @id @default(cuid())
+  companyId       String
+  customerId      String
+  consentType     String    // CREDIT_BUREAU_PULL | AADHAAR_EKYC | DPDP_DATA_PROCESSING | ACCOUNT_AGGREGATOR
+  consentText     String    // Exact text shown to customer
+  consentMode     String    // DIGITAL_CHECKBOX | ESIGN | PHYSICAL_FORM
+  purpose         String    // e.g., "Loan application #LA-2026-001234"
+  bureausConsented String?  // JSON array: ["CIBIL","EXPERIAN"] (for bureau consent)
+  validityPeriod  Int?      // Days
+  expiresAt       DateTime?
+  isWithdrawn     Boolean   @default(false)
+  withdrawnAt     DateTime?
+  consentedAt     DateTime  @default(now())
+  ipAddress       String?
+  userAgent       String?
+
+  customer        Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([companyId])
+  @@index([customerId])
+  @@index([consentType])
+}
+
+// ============================================================
+// LOAN PRODUCTS
+// ============================================================
+
+model LoanProduct {
+  id                  String   @id @default(cuid())
+  companyId           String
+  name                String
+  code                String
+  description         String?
+  productType         String   // TERM_LOAN | BULLET | EMI | FLEXI | OVERDRAFT
+  collateralType      String   @default("NONE") // NONE | GOLD | VEHICLE | PROPERTY | OTHER
+  interestMethod      String   @default("DAILY_REDUCING") // DAILY_REDUCING | MONTHLY_REDUCING | FLAT_RATE
+  dayCountConvention  String   @default("ACTUAL_ACTUAL") // ACTUAL_ACTUAL | THIRTY_360
+  interestType        String   @default("FIXED") // FIXED | FLOATING | HYBRID
+  minInterestRate     Int      // basis points (1200 = 12.00%)
+  maxInterestRate     Int      // basis points
+  defaultInterestRate Int      // basis points
+  minTenureMonths     Int      @default(1)
+  maxTenureMonths     Int      @default(360)
+  minAmount           BigInt   // paise
+  maxAmount           BigInt   // paise
+  penalRateAdditional Int      @default(200) // basis points over normal rate (200 = 2%)
+  prepaymentFeePercent Int     @default(0)   // basis points (0 = no prepayment fee)
+  processingFeePercent Int     @default(100) // basis points (100 = 1%)
+  processingFeeFlat   BigInt   @default(0)   // paise (if flat fee)
+  emiRounding         String   @default("ROUND_UP_RUPEE") // ROUND_UP_RUPEE | ROUND_NEAREST_PAISA
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  deletedAt           DateTime?
+  createdBy           String?
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([isActive])
+}
+
+// ============================================================
+// ACCOUNTING FOUNDATION
+// ============================================================
+
+model ChartOfAccount {
+  id          String    @id @default(cuid())
+  companyId   String
+  code        String    // e.g., "1000", "1100", "2000"
+  name        String    // e.g., "Cash and Bank", "Loan Portfolio"
+  accountType String    // ASSET | LIABILITY | INCOME | EXPENSE | EQUITY
+  parentId    String?   // Self-referential for hierarchy
+  level       Int       @default(0) // 0 = top-level, 1 = sub-account, etc.
+  isActive    Boolean   @default(true)
+  isSystem    Boolean   @default(false) // System accounts can't be deleted
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  parent      ChartOfAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children    ChartOfAccount[] @relation("AccountHierarchy")
+  debitLines  JournalEntryLine[] @relation("DebitAccount")
+  creditLines JournalEntryLine[] @relation("CreditAccount")
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([parentId])
+  @@index([accountType])
+}
+
+model JournalEntry {
+  id          String    @id @default(cuid())
+  companyId   String
+  entryNumber String    // Auto-generated: JV-2026-000001
+  date        DateTime
+  narration   String
+  reference   String?   // Link to source: "DISBURSEMENT:clm1abc", "PAYMENT:clm2def"
+  status      String    @default("POSTED") // DRAFT | POSTED | REVERSED
+  reversalOf  String?   // ID of entry this reverses
+  totalAmount BigInt    // Total debit (= total credit) in paise
+  createdAt   DateTime  @default(now())
+  createdBy   String?
+
+  lines       JournalEntryLine[]
+
+  @@unique([companyId, entryNumber])
+  @@index([companyId])
+  @@index([date])
+  @@index([reference])
+}
+
+model JournalEntryLine {
+  id              String   @id @default(cuid())
+  journalEntryId  String
+  accountId       String
+  debitAmount     BigInt   @default(0) // paise
+  creditAmount    BigInt   @default(0) // paise
+  narration       String?
+
+  journalEntry    JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  debitAccount    ChartOfAccount @relation("DebitAccount", fields: [accountId], references: [id])
+  creditAccount   ChartOfAccount @relation("CreditAccount", fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([accountId])
+}
